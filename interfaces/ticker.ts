@@ -49,6 +49,13 @@ export interface KiteTickerParams {
      * @type {string}
      */
     root: string;
+    /**
+	 * 
+	 * @date 28/11/2023 - 11:13:00
+	 *
+	 * @type {?object}
+	 */
+	tokens_bot_map?: object;
 }
 
 /**

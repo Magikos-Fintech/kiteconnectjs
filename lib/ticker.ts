@@ -294,6 +294,13 @@ class KiteTicker implements KiteTickerInterface {
 	 */
 	root: string;
 	/**
+	 * 
+	 * @date 28/11/2023 - 11:13:00
+	 *
+	 * @type {?object}
+	 */
+	tokens_bot_map?: object;
+	/**
 	 * Creates an instance of KiteTicker.
 	 * @date 07/06/2023 - 21:38:00
 	 *
@@ -302,6 +309,10 @@ class KiteTicker implements KiteTickerInterface {
 	 */
 	constructor(params: KiteTickerParams) {
 		this.root = params.root || 'wss://ws.kite.trade/';
+
+		// instrument tokens bot map
+		this.tokens_bot_map = params.tokens_bot_map;
+
 		// public constants
 		/**
 		 * @memberOf KiteTicker
@@ -637,8 +648,10 @@ function parseTextMessage(data: string | AnyObject) {
  * @returns {{}}
  */
 function parseBinary(binpacks: ArrayBuffer) {
+	const tokens_bot_map = this.tokens_bot_map;
+	
 	const packets = splitPackets(binpacks),
-		ticks: any[] = [];
+		ticks: { [key: string]: any } = {};
 
 	for (let n = 0; n < packets.length; n++) {
 		const bin: any = packets[n],
@@ -659,12 +672,16 @@ function parseBinary(binpacks: ArrayBuffer) {
 
 		// Parse LTP
 		if (bin.byteLength === 8) {
-			ticks.push({
-				tradable: tradable,
-				mode: modeLTP,
-				instrument_token,
-				last_price: buf2long(bin.slice(4, 8)) / divisor
-			});
+			for(let bot of tokens_bot_map[instrument_token]){
+				if(!ticks[bot]) ticks[bot] = [];
+				ticks[bot].push({
+					tradable: tradable,
+					mode: modeLTP,
+					instrument_token,
+					last_price: buf2long(bin.slice(4, 8)) / divisor
+				});
+			}
+			
 			// Parse indices quote and full mode
 		} else if (bin.byteLength === 28 || bin.byteLength === 32) {
 			let mode = modeQuote;
@@ -696,7 +713,10 @@ function parseBinary(binpacks: ArrayBuffer) {
 				if (timestamp) tick.exchange_timestamp = new Date(timestamp * 1000);
 			}
 
-			ticks.push(tick);
+			for(let bot of tokens_bot_map[instrument_token]){
+				if(!ticks[bot]) ticks[bot] = [];
+				ticks[bot].push(tick);
+			}
 		} else if (bin.byteLength === 44 || bin.byteLength === 184) {
 			let mode = modeQuote;
 			if (bin.byteLength === 184) mode = modeFull;
@@ -756,7 +776,10 @@ function parseBinary(binpacks: ArrayBuffer) {
 				}
 			}
 
-			ticks.push(tick);
+			for(let bot of tokens_bot_map[instrument_token]){
+				if(!ticks[bot]) ticks[bot] = [];
+				ticks[bot].push(tick);
+			}
 		}
 	}
 
